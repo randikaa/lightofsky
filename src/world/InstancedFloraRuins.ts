@@ -100,8 +100,8 @@ export class InstancedFloraRuins {
 
           const evalData = noise.evaluate(wx, wz);
 
-          // 1. Exclude the road
-          if (evalData.roadFactor > 0.05) continue;
+          // 1. Exclude the road, underwater ocean, and beach dunes
+          if (evalData.roadFactor > 0.05 || evalData.isUnderwater || evalData.isBeach) continue;
 
           // 2. Exclude steep cliffs
           if (evalData.slope > 0.92) continue;

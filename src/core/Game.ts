@@ -12,6 +12,9 @@ import { AdventurerModelFactory, type CharacterClass } from "../character/Advent
 import { ForestModelFactory } from "../world/ForestModelFactory";
 import { VillageModelFactory } from "../world/VillageModelFactory";
 import { VillageManager } from "../world/VillageManager";
+import { PirateModelFactory } from "../world/PirateModelFactory";
+import { PirateBeachManager } from "../world/PirateBeachManager";
+import { OceanWater } from "../world/OceanWater";
 
 export interface GameTelemetry {
   speedKmh: number;
@@ -50,6 +53,8 @@ export class Game {
   public particles: ParticleManager;
   public network!: NetworkManager;
   public villageManager!: VillageManager;
+  public pirateBeachManager!: PirateBeachManager;
+  public oceanWater!: OceanWater;
 
   private clock = new THREE.Clock();
   private animationFrameId: number | null = null;
@@ -116,14 +121,16 @@ export class Game {
     const advFactory = AdventurerModelFactory.getInstance();
     const forestFactory = ForestModelFactory.getInstance();
     const villageFactory = VillageModelFactory.getInstance();
+    const pirateFactory = PirateModelFactory.getInstance();
 
     let advLoaded = advFactory.isLoaded ? 8 : 0;
     let forestLoaded = forestFactory.isLoaded ? 21 : 0;
     let villageLoaded = villageFactory.isLoaded ? 42 : 0;
-    const totalAssets = 71;
+    let pirateLoaded = pirateFactory.isLoaded ? 35 : 0;
+    const totalAssets = 106;
 
     const reportAssetProgress = (stage: string) => {
-      const sum = advLoaded + forestLoaded + villageLoaded;
+      const sum = advLoaded + forestLoaded + villageLoaded + pirateLoaded;
       const pct = Math.min(75, Math.floor(5 + (sum / totalAssets) * 70));
       this.onLoadingProgress?.(pct, stage);
     };
@@ -140,14 +147,19 @@ export class Game {
       villageLoaded = loaded;
       reportAssetProgress("Assembling medieval settlement architecture...");
     };
+    pirateFactory.onProgress = (loaded) => {
+      pirateLoaded = loaded;
+      reportAssetProgress("Anchoring pirate fleet & ocean bay...");
+    };
 
     reportAssetProgress("Streaming 3D assets...");
 
-    // 3. Pre-load KayKit Adventurer, Forest Nature, and Medieval Village assets in parallel
+    // 3. Pre-load Adventurer, Nature, Medieval Village, and Pirate Kit assets in parallel
     await Promise.all([
       advFactory.loadAll(),
       forestFactory.loadAll(),
       villageFactory.loadAll(),
+      pirateFactory.loadAll(),
     ]);
     if (this.isDestroyed) return;
 
@@ -161,7 +173,7 @@ export class Game {
 
     const worldSeed = 1337;
 
-    this.onLoadingProgress?.(85, "Constructing medieval village settlement & terrain chunks...");
+    this.onLoadingProgress?.(85, "Constructing medieval village, ocean bay & pirate beach...");
 
     // 5. Initialize Procedural Endless World Chunk Manager
     this.chunkManager = new WorldChunkManager(this.scene, this.physics.world, worldSeed);
@@ -169,6 +181,15 @@ export class Game {
     // 5b. Initialize Medieval Village Settlement
     this.villageManager = new VillageManager(this.scene, this.physics.world, this.chunkManager.getNoise());
     this.villageManager.buildVillage();
+
+    // 5c. Initialize Animated Ocean Water & Pirate Beach Cove
+    this.oceanWater = new OceanWater(this.scene);
+    this.pirateBeachManager = new PirateBeachManager(
+      this.scene,
+      this.physics.world,
+      this.chunkManager.getNoise()
+    );
+    this.pirateBeachManager.buildBeach();
 
     // 6. Spawn Player Character Directly on Carved Jungle Road
     const noise = this.chunkManager.getNoise();
@@ -320,6 +341,10 @@ export class Game {
       // 6. Ambient Wildlife & Sun Shadows Follow Character
       this.atmosphere.update(dt, charPos);
 
+      // 6b. Animate Ocean Waves and Pirate Beach Cove Entities
+      this.oceanWater?.update(dt);
+      this.pirateBeachManager?.update(dt);
+
       // 7. Telemetry Bridge to Explorer HUD
       if (this.onTelemetryUpdate) {
         const speedKmh = Math.round(speed * 3.6);
@@ -386,6 +411,8 @@ export class Game {
     this.input?.destroy();
     this.network?.destroy();
     this.villageManager?.dispose();
+    this.oceanWater?.destroy(this.scene);
+    this.pirateBeachManager?.destroy();
     if (this.renderer?.domElement?.parentElement) {
       this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);
     }

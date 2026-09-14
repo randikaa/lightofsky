@@ -33,6 +33,10 @@ export class TerrainPhysics {
     const mudRoadColor = new THREE.Color(0x5c4033);
     const stoneColor = new THREE.Color(0x78716c);
     const cliffColor = new THREE.Color(0x1b2d20);
+    const goldenSandColor = new THREE.Color(0xe2c185);
+    const wetSandColor = new THREE.Color(0xb59560);
+    const shallowSeaColor = new THREE.Color(0x275d68);
+    const deepSeaBedColor = new THREE.Color(0x132731);
 
     let vIdx = 0;
     let uvIdx = 0;
@@ -45,7 +49,15 @@ export class TerrainPhysics {
         const worldX = chunkCenterX + localX;
         const worldZ = chunkCenterZ + localZ;
 
-        const { height, roadFactor, isRuinPlateau, slope } = noise.evaluate(worldX, worldZ);
+        const {
+          height,
+          roadFactor,
+          isRuinPlateau,
+          slope,
+          isUnderwater,
+          sandFactor,
+          waterDepth,
+        } = noise.evaluate(worldX, worldZ);
 
         positions[vIdx] = localX;
         positions[vIdx + 1] = height;
@@ -54,9 +66,19 @@ export class TerrainPhysics {
         // Rapier heightfield indexing: outer loop X, inner loop Z
         rapierHeights[xi * numVertsZ + zi] = height;
 
-        // Dynamic vertex color blend
+        // Dynamic vertex color blend across biomes
         let finalColor = grassColor.clone();
-        if (roadFactor > 0.35) {
+
+        if (isUnderwater) {
+          // Underwater seabed (aquamarine shallow to deep navy)
+          const depthRatio = Math.min(1.0, waterDepth / 6.0);
+          finalColor = shallowSeaColor.clone().lerp(deepSeaBedColor, depthRatio);
+        } else if (sandFactor > 0.15) {
+          // Coastal Beach & Sand Dunes
+          const isWet = height < 0.6;
+          const targetSand = isWet ? wetSandColor : goldenSandColor;
+          finalColor.lerp(targetSand, Math.min(1.0, sandFactor * 1.3));
+        } else if (roadFactor > 0.35) {
           finalColor.lerp(mudRoadColor, roadFactor);
         } else if (isRuinPlateau) {
           finalColor.lerp(stoneColor, 0.85);

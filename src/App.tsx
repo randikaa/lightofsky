@@ -7,6 +7,7 @@ import { LoadingScreen } from "./ui/LoadingScreen";
 import { AdventurerModelFactory, type CharacterClass } from "./character/AdventurerModelFactory";
 import { ForestModelFactory } from "./world/ForestModelFactory";
 import { VillageModelFactory } from "./world/VillageModelFactory";
+import { PirateModelFactory } from "./world/PirateModelFactory";
 
 export function App() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -43,14 +44,16 @@ export function App() {
     const advFactory = AdventurerModelFactory.getInstance();
     const forestFactory = ForestModelFactory.getInstance();
     const villageFactory = VillageModelFactory.getInstance();
+    const pirateFactory = PirateModelFactory.getInstance();
 
     let advLoaded = advFactory.isLoaded ? 8 : 0;
     let forestLoaded = forestFactory.isLoaded ? 21 : 0;
     let villageLoaded = villageFactory.isLoaded ? 42 : 0;
-    const totalAssets = 71;
+    let pirateLoaded = pirateFactory.isLoaded ? 35 : 0;
+    const totalAssets = 106;
 
     const updateProgress = (detail: string) => {
-      const sum = advLoaded + forestLoaded + villageLoaded;
+      const sum = advLoaded + forestLoaded + villageLoaded + pirateLoaded;
       const pct = Math.min(100, Math.round((sum / totalAssets) * 100));
       setLoadingProgress(pct);
       setLoadingStatus(detail);
@@ -68,6 +71,10 @@ export function App() {
       villageLoaded = l;
       updateProgress(`Downloading Medieval Village Architecture (${l}/${t})...`);
     };
+    pirateFactory.onProgress = (l, t) => {
+      pirateLoaded = l;
+      updateProgress(`Downloading Pirate Fleet, Harbor & Ocean (${l}/${t})...`);
+    };
 
     updateProgress("Connecting to asset repository...");
 
@@ -75,6 +82,7 @@ export function App() {
       advFactory.loadAll(),
       forestFactory.loadAll(),
       villageFactory.loadAll(),
+      pirateFactory.loadAll(),
     ])
       .then(() => {
         setLoadingProgress(100);
