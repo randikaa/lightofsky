@@ -26,11 +26,23 @@ export class ForestModelFactory {
     return ForestModelFactory.instance;
   }
 
+  public onProgress?: (loaded: number, total: number) => void;
+
   public async loadAll(): Promise<void> {
-    if (this.isLoaded) return;
+    if (this.isLoaded) {
+      this.onProgress?.(21, 21);
+      return;
+    }
     if (this.loadPromise) return this.loadPromise;
 
     this.loadPromise = (async () => {
+      let loaded = 0;
+      const total = 21; // 1 texture + 20 models
+      const notifyProgress = () => {
+        loaded++;
+        this.onProgress?.(loaded, total);
+      };
+
       // Texture loader for shared palette
       const textureLoader = new THREE.TextureLoader();
       const texture = await textureLoader.loadAsync("/assets/nature/forest_texture.png");
@@ -40,6 +52,7 @@ export class ForestModelFactory {
       texture.minFilter = THREE.NearestMipmapLinearFilter;
       texture.wrapS = THREE.ClampToEdgeWrapping;
       texture.wrapT = THREE.ClampToEdgeWrapping;
+      notifyProgress();
 
       this.sharedMaterial = new THREE.MeshStandardMaterial({
         map: texture,
@@ -81,8 +94,7 @@ export class ForestModelFactory {
       ];
 
       const loadGroup = async (files: string[]): Promise<THREE.BufferGeometry[]> => {
-        const results: THREE.BufferGeometry[] = [];
-        for (const file of files) {
+        const promises = files.map(async (file): Promise<THREE.BufferGeometry | null> => {
           try {
             const gltf = await this.loader.loadAsync(`/assets/nature/${file}`);
             let foundGeo: THREE.BufferGeometry | null = null;
@@ -91,12 +103,19 @@ export class ForestModelFactory {
                 foundGeo = (child as THREE.Mesh).geometry;
               }
             });
-            if (foundGeo) {
-              results.push(foundGeo);
-            }
+            return foundGeo;
           } catch (err) {
             console.warn(`ForestModelFactory: Failed to load ${file}`, err);
+            return null;
+          } finally {
+            notifyProgress();
           }
+        });
+
+        const items = await Promise.all(promises);
+        const results: THREE.BufferGeometry[] = [];
+        for (const geo of items) {
+          if (geo) results.push(geo);
         }
         return results;
       };

@@ -109,7 +109,7 @@ export class AdventurerModelFactory {
   // Cache loaded master scenes and animation clips
   private characterScenes = new Map<CharacterClass, THREE.Group>();
   private animationClips = new Map<string, THREE.AnimationClip>();
-  private isLoaded = false;
+  public isLoaded = false;
   private loadPromise: Promise<void> | null = null;
 
   public static getInstance(): AdventurerModelFactory {
@@ -119,15 +119,33 @@ export class AdventurerModelFactory {
     return AdventurerModelFactory.instance;
   }
 
+  public onProgress?: (loaded: number, total: number) => void;
+
   public async loadAll(): Promise<void> {
-    if (this.isLoaded) return;
+    if (this.isLoaded) {
+      this.onProgress?.(8, 8);
+      return;
+    }
     if (this.loadPromise) return this.loadPromise;
 
     this.loadPromise = (async () => {
+      let loaded = 0;
+      const total = 8; // 2 animations + 6 characters
+      const notifyProgress = () => {
+        loaded++;
+        this.onProgress?.(loaded, total);
+      };
+
       // 1. Load Animation GLBs
       const [generalGlb, movementGlb] = await Promise.all([
-        this.loader.loadAsync("/assets/animations/Rig_Medium_General.glb"),
-        this.loader.loadAsync("/assets/animations/Rig_Medium_MovementBasic.glb"),
+        this.loader.loadAsync("/assets/animations/Rig_Medium_General.glb").then((res) => {
+          notifyProgress();
+          return res;
+        }),
+        this.loader.loadAsync("/assets/animations/Rig_Medium_MovementBasic.glb").then((res) => {
+          notifyProgress();
+          return res;
+        }),
       ]);
 
       generalGlb.animations.forEach((clip) => {
@@ -140,24 +158,28 @@ export class AdventurerModelFactory {
       // 2. Load all 6 Character Classes in parallel
       const classKeys = Object.keys(CHARACTER_CLASSES) as CharacterClass[];
       const loadPromises = classKeys.map(async (classId) => {
-        const info = CHARACTER_CLASSES[classId];
-        const gltf = await this.loader.loadAsync(`/assets/characters/${info.modelFile}`);
-        const scene = gltf.scene;
+        try {
+          const info = CHARACTER_CLASSES[classId];
+          const gltf = await this.loader.loadAsync(`/assets/characters/${info.modelFile}`);
+          const scene = gltf.scene;
 
-        // Configure shadows and material settings
-        scene.traverse((child) => {
-          if ((child as THREE.Mesh).isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-            const mat = (child as THREE.Mesh).material;
-            if (mat && (mat as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
-              (mat as THREE.MeshStandardMaterial).roughness = 0.7;
-              (mat as THREE.MeshStandardMaterial).metalness = 0.1;
+          // Configure shadows and material settings
+          scene.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+              const mat = (child as THREE.Mesh).material;
+              if (mat && (mat as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
+                (mat as THREE.MeshStandardMaterial).roughness = 0.7;
+                (mat as THREE.MeshStandardMaterial).metalness = 0.1;
+              }
             }
-          }
-        });
+          });
 
-        this.characterScenes.set(classId, scene);
+          this.characterScenes.set(classId, scene);
+        } finally {
+          notifyProgress();
+        }
       });
 
       await Promise.all(loadPromises);

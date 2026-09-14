@@ -27,8 +27,18 @@ app.get("/health", (_req, res) => {
 // Serve frontend client static assets built by Vite
 const distPath = path.resolve(__dirname, "../../dist");
 if (fs.existsSync(distPath)) {
-  console.log(`📦 Serving static client files from ${distPath}`);
-  app.use(express.static(distPath));
+  app.use(
+    express.static(distPath, {
+      maxAge: "7d",
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith(".html")) {
+          res.setHeader("Cache-Control", "no-cache");
+        } else {
+          res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+        }
+      },
+    })
+  );
 
   app.get("*", (req, res, next) => {
     // Let Colyseus matchmaker / health endpoints pass through

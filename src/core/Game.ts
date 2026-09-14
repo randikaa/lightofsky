@@ -31,6 +31,8 @@ export interface GameCallbacks {
   onTelemetryUpdate?: (telemetry: GameTelemetry) => void;
   onChatMessage?: (msg: ChatMessagePayload) => void;
   onSystemMessage?: (msg: SystemMessagePayload) => void;
+  onLoadingProgress?: (percent: number, statusText: string) => void;
+  onGameReady?: () => void;
 }
 
 export class Game {
@@ -56,6 +58,8 @@ export class Game {
   private onTelemetryUpdate?: (telemetry: GameTelemetry) => void;
   private onChatMessage?: (msg: ChatMessagePayload) => void;
   private onSystemMessage?: (msg: SystemMessagePayload) => void;
+  private onLoadingProgress?: (percent: number, statusText: string) => void;
+  private onGameReady?: () => void;
   private onlineStatus: "connected" | "connecting" | "offline" = "offline";
   private playerCount = 1;
 
@@ -75,6 +79,8 @@ export class Game {
     this.onTelemetryUpdate = callbacks.onTelemetryUpdate;
     this.onChatMessage = callbacks.onChatMessage;
     this.onSystemMessage = callbacks.onSystemMessage;
+    this.onLoadingProgress = callbacks.onLoadingProgress;
+    this.onGameReady = callbacks.onGameReady;
     this.currentCharacterClass = initialClass;
     this.currentPlayerName = initialName;
 
@@ -105,13 +111,47 @@ export class Game {
   }
 
   private async initAsync(canvasContainer: HTMLElement) {
+    this.onLoadingProgress?.(5, "Connecting to asset repository...");
+
+    const advFactory = AdventurerModelFactory.getInstance();
+    const forestFactory = ForestModelFactory.getInstance();
+    const villageFactory = VillageModelFactory.getInstance();
+
+    let advLoaded = advFactory.isLoaded ? 8 : 0;
+    let forestLoaded = forestFactory.isLoaded ? 21 : 0;
+    let villageLoaded = villageFactory.isLoaded ? 42 : 0;
+    const totalAssets = 71;
+
+    const reportAssetProgress = (stage: string) => {
+      const sum = advLoaded + forestLoaded + villageLoaded;
+      const pct = Math.min(75, Math.floor(5 + (sum / totalAssets) * 70));
+      this.onLoadingProgress?.(pct, stage);
+    };
+
+    advFactory.onProgress = (loaded) => {
+      advLoaded = loaded;
+      reportAssetProgress("Downloading adventurer models & gear...");
+    };
+    forestFactory.onProgress = (loaded) => {
+      forestLoaded = loaded;
+      reportAssetProgress("Cultivating ancient jungle foliage...");
+    };
+    villageFactory.onProgress = (loaded) => {
+      villageLoaded = loaded;
+      reportAssetProgress("Assembling medieval settlement architecture...");
+    };
+
+    reportAssetProgress("Streaming 3D assets...");
+
     // 3. Pre-load KayKit Adventurer, Forest Nature, and Medieval Village assets in parallel
     await Promise.all([
-      AdventurerModelFactory.getInstance().loadAll(),
-      ForestModelFactory.getInstance().loadAll(),
-      VillageModelFactory.getInstance().loadAll(),
+      advFactory.loadAll(),
+      forestFactory.loadAll(),
+      villageFactory.loadAll(),
     ]);
     if (this.isDestroyed) return;
+
+    this.onLoadingProgress?.(78, "Initializing Rapier 3D physics engine...");
 
     // 4. Initialize Rapier WASM Physics Engine
     await PhysicsEngine.init();
@@ -120,6 +160,8 @@ export class Game {
     this.physics = new PhysicsEngine({ x: 0.0, y: -9.81, z: 0.0 });
 
     const worldSeed = 1337;
+
+    this.onLoadingProgress?.(85, "Constructing medieval village settlement & terrain chunks...");
 
     // 5. Initialize Procedural Endless World Chunk Manager
     this.chunkManager = new WorldChunkManager(this.scene, this.physics.world, worldSeed);
@@ -152,6 +194,8 @@ export class Game {
       this.physics?.destroy();
       return;
     }
+
+    this.onLoadingProgress?.(92, "Establishing multiplayer server link...");
 
     // 8. Multiplayer Colyseus Synchronization & Chat System
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -197,7 +241,9 @@ export class Game {
     this.chunkManager.update(this.character.getPosition());
     this.physics.step();
 
+    this.onLoadingProgress?.(100, "Expedition ready!");
     this.start();
+    this.onGameReady?.();
   }
 
   public start() {

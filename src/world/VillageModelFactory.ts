@@ -16,7 +16,7 @@ export class VillageModelFactory {
   }
 
   /**
-   * Essential glTF models required to assemble the Medieval Village structures & props
+   * Essential glTF models required to assemble the Medieval Village structures & props (strictly the 42 active models)
    */
   public static readonly REQUIRED_MODELS = [
     // Walls & Structure
@@ -24,26 +24,13 @@ export class VillageModelFactory {
     "Wall_Plaster_WoodGrid",
     "Wall_Plaster_Window_Thin_Round",
     "Wall_Plaster_Window_Wide_Flat",
-    "Wall_Plaster_Window_Wide_Flat2",
     "Wall_Plaster_Door_Flat",
-    "Wall_UnevenBrick_Straight",
-    "Wall_UnevenBrick_Door_Flat",
-    "Wall_UnevenBrick_Window_Wide_Flat",
     "Wall_Arch",
-    "Corner_Exterior_Brick",
-    "Corner_Exterior_Wood",
     "Corner_ExteriorWide_Brick",
     "Corner_ExteriorWide_Wood",
-    "Overhang_Plaster_Long",
-    "Overhang_Plaster_Short",
-    "Overhang_Plaster_Corner",
-    "Overhang_UnevenBrick_Long",
-    "Overhang_UnevenBrick_Short",
     // Doors, Windows, Shutters
     "DoorFrame_Flat_WoodDark",
-    "DoorFrame_Round_Brick",
     "Door_4_Flat",
-    "Door_1_Round",
     "Window_Thin_Flat1",
     "Window_Wide_Flat1",
     "WindowShutters_Wide_Flat_Open",
@@ -51,20 +38,15 @@ export class VillageModelFactory {
     // Roofs
     "Roof_RoundTiles_4x4",
     "Roof_RoundTiles_4x6",
-    "Roof_RoundTiles_4x8",
-    "Roof_RoundTiles_6x8",
     "Roof_Tower_RoundTiles",
     "Roof_Dormer_RoundTile",
     "Roof_Front_Brick4",
-    "Roof_Front_Brick6",
     "Roof_2x4_RoundTile",
     // Stairs & Balconies
     "Stairs_Exterior_Straight",
     "Stairs_Exterior_Sides",
     "Stairs_Exterior_Platform",
     "Balcony_Cross_Straight",
-    "Balcony_Cross_Corner",
-    "Balcony_Simple_Straight",
     // Props & Street Scatter
     "Prop_Wagon",
     "Prop_Crate",
@@ -82,16 +64,24 @@ export class VillageModelFactory {
     "Prop_Vine1",
     "Prop_Vine2",
     "Prop_Vine4",
-    "Prop_Vine5",
+    // Floors
     "Floor_WoodDark",
     "Floor_Brick",
   ];
 
+  public onProgress?: (loaded: number, total: number) => void;
+
   public async loadAll(): Promise<void> {
-    if (this.isLoaded) return;
+    if (this.isLoaded) {
+      this.onProgress?.(VillageModelFactory.REQUIRED_MODELS.length, VillageModelFactory.REQUIRED_MODELS.length);
+      return;
+    }
     if (this.loadPromise) return this.loadPromise;
 
     this.loadPromise = (async () => {
+      const total = VillageModelFactory.REQUIRED_MODELS.length;
+      let loaded = 0;
+
       const loadTasks = VillageModelFactory.REQUIRED_MODELS.map(async (name) => {
         try {
           const gltf = await this.loader.loadAsync(`/assets/village/${name}.gltf`);
@@ -119,6 +109,9 @@ export class VillageModelFactory {
           this.modelCache.set(name, group);
         } catch (err) {
           console.warn(`VillageModelFactory: Failed to load ${name}.gltf`, err);
+        } finally {
+          loaded++;
+          this.onProgress?.(loaded, total);
         }
       });
 

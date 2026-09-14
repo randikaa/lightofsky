@@ -3,7 +3,10 @@ import { Game, type GameTelemetry } from "./core/Game";
 import { HUD } from "./ui/HUD";
 import { ChatUI, type ChatItem } from "./ui/ChatUI";
 import { CharacterSelectorModal } from "./ui/CharacterSelectorModal";
-import type { CharacterClass } from "./character/AdventurerModelFactory";
+import { LoadingScreen } from "./ui/LoadingScreen";
+import { AdventurerModelFactory, type CharacterClass } from "./character/AdventurerModelFactory";
+import { ForestModelFactory } from "./world/ForestModelFactory";
+import { VillageModelFactory } from "./world/VillageModelFactory";
 
 export function App() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -16,6 +19,11 @@ export function App() {
   const [hasStarted, setHasStarted] = useState(false);
   const [showClassModal, setShowClassModal] = useState(false);
 
+  // Asset loading & initial readiness states
+  const [loadingProgress, setLoadingProgress] = useState(5);
+  const [loadingStatus, setLoadingStatus] = useState("Connecting to asset repository...");
+  const [isGameReady, setIsGameReady] = useState(false);
+
   const [telemetry, setTelemetry] = useState<GameTelemetry | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [messages, setMessages] = useState<ChatItem[]>([
@@ -27,6 +35,13 @@ export function App() {
       isSystem: true,
     },
   ]);
+
+  // Immediately kick off background pre-loading of 3D assets on app mount
+  useEffect(() => {
+    AdventurerModelFactory.getInstance().loadAll();
+    ForestModelFactory.getInstance().loadAll();
+    VillageModelFactory.getInstance().loadAll();
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current || !hasStarted) return;
@@ -65,6 +80,17 @@ export function App() {
                 isSystem: true,
               },
             ]);
+          }
+        },
+        onLoadingProgress: (pct, status) => {
+          if (isMounted) {
+            setLoadingProgress(pct);
+            setLoadingStatus(status);
+          }
+        },
+        onGameReady: () => {
+          if (isMounted) {
+            setIsGameReady(true);
           }
         },
       },
@@ -157,6 +183,15 @@ export function App() {
           playerCount={telemetry?.playerCount ?? 1}
           onSendMessage={handleSendMessage}
           onTypingChange={handleTypingChange}
+        />
+      )}
+
+      {/* Loading Progress Screen */}
+      {hasStarted && (
+        <LoadingScreen
+          progress={loadingProgress}
+          statusText={loadingStatus}
+          isReady={isGameReady}
         />
       )}
     </div>
