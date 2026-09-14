@@ -39,6 +39,8 @@ export class CharacterController {
   private staminaDrainRate = 22.0; // drains in ~4.5s of continuous sprint
   private staminaRegenRate = 18.0;
 
+  public onResetRequest?: () => void;
+
   constructor(
     scene: THREE.Scene,
     world: RAPIER.World,
@@ -201,7 +203,11 @@ export class CharacterController {
 
     // 9. Manual Reset on <kbd>R</kbd>
     if (controls.reset) {
-      this.resetPosition();
+      if (this.onResetRequest) {
+        this.onResetRequest();
+      } else {
+        this.resetPosition();
+      }
     }
   }
 
@@ -216,6 +222,9 @@ export class CharacterController {
     this.body.setNextKinematicTranslation({ x, y, z });
     this.visuals.setPosition(new THREE.Vector3(x, y, z));
     this.verticalVelocity = 0;
+    try {
+      this.physicsWorld.step();
+    } catch (_) {}
   }
 
   public getPosition(): THREE.Vector3 {

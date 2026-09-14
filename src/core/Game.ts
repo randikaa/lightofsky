@@ -205,6 +205,7 @@ export class Game {
       new THREE.Vector3(spawnX, spawnY, 0),
       this.currentCharacterClass
     );
+    this.character.onResetRequest = () => this.resetCharacter();
 
     // 7. Third-Person Orbit & Follow Camera
     this.thirdPersonCamera = new ThirdPersonCamera(
@@ -301,11 +302,13 @@ export class Game {
       const isGrounded = this.character.getIsGrounded();
 
       // Auto-recover if character falls below terrain
-      if (charPos.y < -20) {
-        const noise = this.chunkManager.getNoise();
-        const roadX = noise.getRoadCenterX(charPos.z);
-        const roadY = noise.evaluate(roadX, charPos.z).height + 2.0;
-        this.character.body.setNextKinematicTranslation({ x: roadX, y: roadY, z: charPos.z });
+      if (charPos.y < -12) {
+        const isBeach = Math.hypot(charPos.x - 2000, charPos.z - 2000) < 450;
+        if (isBeach) {
+          this.teleportToBeach();
+        } else {
+          this.teleportToVillage();
+        }
       }
 
       // 2. Stream Endless World Chunks Around Player
@@ -395,7 +398,9 @@ export class Game {
 
   public teleportToBeach() {
     if (!this.character) return;
-    const spawn = PirateBeachManager.SPAWN_POS;
+    const spawn = this.pirateBeachManager
+      ? this.pirateBeachManager.getSpawnPosition()
+      : new THREE.Vector3(2005, 4.0, 1995);
     this.character.teleport(spawn.x, spawn.y, spawn.z);
     this.onSystemMessage?.({
       text: "⚡ Traveled through the Waygate to Pirate Cove & Ocean Beach!",
@@ -435,7 +440,14 @@ export class Game {
   }
 
   public resetCharacter() {
-    this.character?.resetPosition();
+    if (!this.character) return;
+    const charPos = this.character.getPosition();
+    const isBeach = Math.hypot(charPos.x - 2000, charPos.z - 2000) < 450;
+    if (isBeach) {
+      this.teleportToBeach();
+    } else {
+      this.teleportToVillage();
+    }
   }
 
   public switchCharacterClass(newClass: CharacterClass) {
