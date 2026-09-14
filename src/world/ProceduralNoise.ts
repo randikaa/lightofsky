@@ -15,10 +15,6 @@ export interface TerrainSample {
   roadFactor: number;
   isRuinPlateau: boolean;
   slope: number;
-  isBeach: boolean;
-  isUnderwater: boolean;
-  sandFactor: number;
-  waterDepth: number;
 }
 
 export class ProceduralNoise {
@@ -28,7 +24,6 @@ export class ProceduralNoise {
   // Road configuration
   public readonly roadWidth = 14.0;
   public readonly roadShoulder = 6.0;
-  public static readonly OCEAN_LEVEL = 0.0;
 
   constructor(seed = 42) {
     this.seed = seed;
@@ -48,22 +43,7 @@ export class ProceduralNoise {
   }
 
   /**
-   * Continuous organic coastline X coordinate at world Z
-   * Curves naturally to form a wide, sheltered ocean bay near the village (Z in [-100, 100])
-   */
-  public getCoastlineX(worldZ: number): number {
-    const bayIndentation =
-      Math.cos(Math.min(Math.PI, Math.max(-Math.PI, (worldZ / 110.0) * Math.PI))) * 14.0;
-    return (
-      22.0 +
-      bayIndentation +
-      Math.sin(worldZ * 0.015) * 9.0 +
-      Math.cos(worldZ * 0.005) * 5.0
-    );
-  }
-
-  /**
-   * Evaluates terrain elevation, road factor, ruin plateau status, beach/ocean status, and slope at (x, z)
+   * Evaluates terrain elevation, road factor, ruin plateau status, and slope at (x, z)
    */
   public evaluate(worldX: number, worldZ: number): TerrainSample {
     // 1. Multi-octave Fractal Brownian Motion (FBM) for natural jungle hills
@@ -106,57 +86,18 @@ export class ProceduralNoise {
       }
     }
 
-    // 4. Coastline, Golden Beach Dunes, and Ocean Bay (towards west / lower X)
-    const coastX = this.getCoastlineX(worldZ);
-    let sandFactor = 0;
-    const isBeachTrail = Math.abs(worldZ) < 18.0 && worldX >= coastX && worldX <= 88.0;
-
-    if (worldX < coastX) {
-      // Deep & Shallow Ocean Bay
-      const oceanDist = coastX - worldX;
-      const seaBed = -Math.min(
-        9.0,
-        Math.pow(oceanDist * 0.12, 1.1) +
-          Math.sin(worldX * 0.05 + worldZ * 0.04) * 0.5 -
-          0.5
-      );
-      const blend = Math.min(1.0, oceanDist / 10.0);
-      elevation = elevation * (1.0 - blend) + seaBed * blend;
-      sandFactor = Math.max(0, 1.0 - oceanDist / 14.0);
-    } else if (worldX < coastX + 28.0) {
-      // Sandy Beach Dunes
-      const beachDist = worldX - coastX;
-      const t = beachDist / 28.0;
-      sandFactor = Math.max(0, 1.0 - t * 0.85);
-      const duneH = Math.pow(t, 1.3) * 4.5 + Math.sin(worldX * 0.07 + worldZ * 0.06) * 0.4;
-      elevation = elevation * t + duneH * (1.0 - t);
-    } else if (isBeachTrail) {
-      // Natural walking path connecting Village Plaza (X=88) to the Beach (X=coastX)
-      const trailT = (worldX - coastX) / (88.0 - coastX);
-      const trailH = 1.0 + trailT * 6.5;
-      const trailBlend = Math.cos((Math.abs(worldZ) / 18.0) * (Math.PI / 2));
-      elevation = elevation * (1.0 - trailBlend) + trailH * trailBlend;
-      sandFactor = Math.max(sandFactor, trailBlend * 0.7);
-    }
-
-    const isUnderwater = elevation < -0.15;
-    const waterDepth = Math.max(0, -elevation);
-    const isBeach = sandFactor > 0.35 && elevation >= -1.2 && elevation <= 6.0;
-
-    // 5. Ancient Ruins Plateaus (Spawns clusters of stepped stone temple terraces on dry land only)
+    // 4. Ancient Ruins Plateaus (Spawns clusters of stepped stone temple terraces on dry land only)
     const ruinNoise = this.noise2D(worldX * 0.0025 + 150, worldZ * 0.0025 + 150);
     const isRuinPlateau =
       ruinNoise > 0.48 &&
       roadFactor < 0.08 &&
-      Math.abs(worldZ) > 55 &&
-      !isBeach &&
-      !isUnderwater;
+      Math.abs(worldZ) > 55;
 
     if (isRuinPlateau) {
       elevation = Math.round(elevation / 4.0) * 4.0 + 2.0; // Stepped stone terrace
     }
 
-    // 6. Slope estimation via finite difference
+    // 5. Slope estimation via finite difference
     const delta = 1.0;
     const hR = this.sampleRawElevation(worldX + delta, worldZ);
     const hU = this.sampleRawElevation(worldX, worldZ + delta);
@@ -167,10 +108,6 @@ export class ProceduralNoise {
       roadFactor,
       isRuinPlateau,
       slope,
-      isBeach,
-      isUnderwater,
-      sandFactor,
-      waterDepth,
     };
   }
 

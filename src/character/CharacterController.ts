@@ -211,6 +211,13 @@ export class CharacterController {
     this.verticalVelocity = 0;
   }
 
+  public teleport(x: number, y: number, z: number) {
+    this.body.setTranslation({ x, y, z }, true);
+    this.body.setNextKinematicTranslation({ x, y, z });
+    this.visuals.setPosition(new THREE.Vector3(x, y, z));
+    this.verticalVelocity = 0;
+  }
+
   public getPosition(): THREE.Vector3 {
     const p = this.body.translation();
     return new THREE.Vector3(p.x, p.y, p.z);

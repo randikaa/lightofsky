@@ -12,6 +12,8 @@ export class VillageManager {
   private villageGroup = new THREE.Group();
   private villageColliders: RAPIER.Collider[] = [];
   public isBuilt = false;
+  public waygatePos = new THREE.Vector3();
+  private portalBeacon: THREE.Mesh | null = null;
 
   constructor(scene: THREE.Scene, physicsWorld: RAPIER.World, noise: ProceduralNoise) {
     this.scene = scene;
@@ -133,6 +135,33 @@ export class VillageManager {
     this.villageGroup.add(scatter.group);
     this.villageColliders.push(...scatter.colliders);
 
+    // ==========================================
+    // 6. HARBOR WAYGATE TO PIRATE COVE
+    // Located at the village plaza edge
+    // ==========================================
+    this.waygatePos = getPos(22.0, rightSideDist + 4.0);
+    const gateArch = factory.cloneModel("Wall_Arch");
+    if (gateArch) {
+      gateArch.position.copy(this.waygatePos);
+      gateArch.rotation.y = rightRot + Math.PI / 2;
+      gateArch.scale.setScalar(1.5);
+      this.villageGroup.add(gateArch);
+    }
+
+    // Mystic Glowing Azure Beacon / Portal Orb
+    const beaconGeo = new THREE.SphereGeometry(0.85, 16, 16);
+    const beaconMat = new THREE.MeshBasicMaterial({
+      color: 0x0284c7, // Tropical azure portal energy
+      wireframe: true,
+    });
+    this.portalBeacon = new THREE.Mesh(beaconGeo, beaconMat);
+    this.portalBeacon.position.set(this.waygatePos.x, this.waygatePos.y + 2.0, this.waygatePos.z);
+    this.villageGroup.add(this.portalBeacon);
+
+    const portalLight = new THREE.PointLight(0x0284c7, 2.5, 15);
+    portalLight.position.set(this.waygatePos.x, this.waygatePos.y + 2.2, this.waygatePos.z);
+    this.villageGroup.add(portalLight);
+
     // Add village assembly to Three.js scene
     this.scene.add(this.villageGroup);
     this.isBuilt = true;
@@ -141,6 +170,18 @@ export class VillageManager {
       this.villageColliders.length,
       "physics colliders. All structures seamlessly aligned."
     );
+  }
+
+  public isNearWaygate(pos: THREE.Vector3): boolean {
+    if (!this.isBuilt) return false;
+    return Math.hypot(pos.x - this.waygatePos.x, pos.z - this.waygatePos.z) < 3.2;
+  }
+
+  public update(dt: number): void {
+    if (this.portalBeacon) {
+      this.portalBeacon.rotation.y += dt * 1.8;
+      this.portalBeacon.rotation.x += dt * 0.9;
+    }
   }
 
   public dispose(): void {

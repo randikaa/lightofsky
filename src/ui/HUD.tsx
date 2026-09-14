@@ -8,6 +8,7 @@ interface HUDProps {
   onToggleMute: () => void;
   onResetCharacter: () => void;
   onChangeCharacter?: () => void;
+  onToggleTravel?: () => void;
 }
 
 export const HUD: React.FC<HUDProps> = ({
@@ -16,6 +17,7 @@ export const HUD: React.FC<HUDProps> = ({
   onToggleMute,
   onResetCharacter,
   onChangeCharacter,
+  onToggleTravel,
 }) => {
   const {
     speedKmh,
@@ -111,8 +113,15 @@ export const HUD: React.FC<HUDProps> = ({
           fontSize: 12,
           fontWeight: 700,
         }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: onlineStatus === "connected" ? "#10b981" : "#4ade80" }} />
-          <span style={{ color: "#4ade80" }}>JUNGLE EXPLORER</span>
+          <div style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            backgroundColor: onlineStatus === "connected" ? (telemetry.currentZone === "beach" ? "#38bdf8" : "#4ade80") : "#f59e0b",
+          }} />
+          <span style={{ color: telemetry.currentZone === "beach" ? "#38bdf8" : "#4ade80" }}>
+            {telemetry.currentZone === "beach" ? "PIRATE COVE & BEACH" : "JUNGLE EXPLORER"}
+          </span>
         </div>
       </div>
 
@@ -293,6 +302,38 @@ export const HUD: React.FC<HUDProps> = ({
             }}
           >
             <UserCheck size={18} />
+          </button>
+        )}
+
+        {onToggleTravel && (
+          <button
+            onClick={onToggleTravel}
+            title={telemetry.currentZone === "beach" ? "Return to Jungle Village" : "Travel to Pirate Beach"}
+            style={{
+              background: telemetry.currentZone === "beach"
+                ? "linear-gradient(135deg, rgba(34, 197, 94, 0.88), rgba(16, 185, 129, 0.92))"
+                : "linear-gradient(135deg, rgba(2, 132, 199, 0.88), rgba(14, 165, 233, 0.92))",
+              backdropFilter: "blur(10px)",
+              border: telemetry.currentZone === "beach"
+                ? "1px solid rgba(74, 222, 128, 0.6)"
+                : "1px solid rgba(56, 189, 248, 0.6)",
+              borderRadius: 14,
+              padding: "10px 18px",
+              color: "#ffffff",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: 0.6,
+              boxShadow: telemetry.currentZone === "beach"
+                ? "0 4px 20px rgba(34, 197, 94, 0.45)"
+                : "0 4px 20px rgba(2, 132, 199, 0.45)",
+            }}
+          >
+            <span style={{ fontSize: 16 }}>{telemetry.currentZone === "beach" ? "🌲" : "🏖️"}</span>
+            <span>{telemetry.currentZone === "beach" ? "RETURN TO JUNGLE" : "VISIT PIRATE BEACH"}</span>
           </button>
         )}
 

@@ -28,6 +28,7 @@ export interface GameTelemetry {
   onlineStatus: "connected" | "connecting" | "offline";
   playerCount: number;
   playerPos: { x: number; y: number; z: number };
+  currentZone: "jungle" | "beach";
 }
 
 export interface GameCallbacks {
@@ -59,6 +60,7 @@ export class Game {
   private clock = new THREE.Clock();
   private animationFrameId: number | null = null;
   private isRunning = false;
+  private travelCooldown = 0;
 
   private onTelemetryUpdate?: (telemetry: GameTelemetry) => void;
   private onChatMessage?: (msg: ChatMessagePayload) => void;
@@ -341,9 +343,24 @@ export class Game {
       // 6. Ambient Wildlife & Sun Shadows Follow Character
       this.atmosphere.update(dt, charPos);
 
-      // 6b. Animate Ocean Waves and Pirate Beach Cove Entities
+      // 6b. Animate Ocean Waves, Pirate Beach Cove Entities, and Village Portals
       this.oceanWater?.update(dt);
       this.pirateBeachManager?.update(dt);
+      this.villageManager?.update(dt);
+
+      // 6c. In-World Waygate Proximity Detection
+      if (this.travelCooldown > 0) {
+        this.travelCooldown -= dt;
+      } else {
+        const isBeach = Math.hypot(charPos.x - 2000, charPos.z - 2000) < 400;
+        if (!isBeach && this.villageManager?.isNearWaygate(charPos)) {
+          this.teleportToBeach();
+          this.travelCooldown = 4.0;
+        } else if (isBeach && this.pirateBeachManager?.isNearWaygate(charPos)) {
+          this.teleportToVillage();
+          this.travelCooldown = 4.0;
+        }
+      }
 
       // 7. Telemetry Bridge to Explorer HUD
       if (this.onTelemetryUpdate) {
@@ -353,6 +370,7 @@ export class Game {
           Math.floor(charPos.x / this.chunkManager.chunkSize),
           Math.floor(charPos.z / this.chunkManager.chunkSize),
         ];
+        const currentZone = Math.hypot(charPos.x - 2000, charPos.z - 2000) < 400 ? "beach" : "jungle";
 
         this.onTelemetryUpdate({
           speedKmh,
@@ -366,6 +384,7 @@ export class Game {
           onlineStatus: this.onlineStatus,
           playerCount: this.playerCount,
           playerPos: { x: charPos.x, y: charPos.y, z: charPos.z },
+          currentZone,
         });
       }
     }
@@ -373,6 +392,39 @@ export class Game {
     // Render Scene
     this.renderer.render(this.scene, this.camera);
   };
+
+  public teleportToBeach() {
+    if (!this.character) return;
+    const spawn = PirateBeachManager.SPAWN_POS;
+    this.character.teleport(spawn.x, spawn.y, spawn.z);
+    this.onSystemMessage?.({
+      text: "⚡ Traveled through the Waygate to Pirate Cove & Ocean Beach!",
+      timestamp: Date.now(),
+    });
+  }
+
+  public teleportToVillage() {
+    if (!this.character) return;
+    const noise = this.chunkManager.getNoise();
+    const spawnX = noise.getRoadCenterX(0);
+    const spawnY = noise.evaluate(spawnX, 0).height + 2.0;
+    this.character.teleport(spawnX, spawnY, 0);
+    this.onSystemMessage?.({
+      text: "🌲 Returned through the Waygate to Medieval Jungle Village!",
+      timestamp: Date.now(),
+    });
+  }
+
+  public toggleZoneTravel() {
+    if (!this.character) return;
+    const charPos = this.character.getPosition();
+    const isBeach = Math.hypot(charPos.x - 2000, charPos.z - 2000) < 400;
+    if (isBeach) {
+      this.teleportToVillage();
+    } else {
+      this.teleportToBeach();
+    }
+  }
 
   public sendChatMessage(text: string) {
     this.network?.sendChatMessage(text);

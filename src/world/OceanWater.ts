@@ -33,13 +33,13 @@ export class OceanWater {
     });
 
     this.mesh = new THREE.Mesh(this.geometry, waterMaterial);
-    // Center ocean plane west of coastline (X in [-450, 50], Z in [-450, 450])
-    this.mesh.position.set(-200, OceanWater.WATER_Y, 0);
+    // Center ocean plane west of beach shoreline in the dedicated cove (X in [1700, 2200], Z in [1750, 2250])
+    this.mesh.position.set(1950, OceanWater.WATER_Y, 2000);
     this.mesh.receiveShadow = true;
     scene.add(this.mesh);
 
-    // Subtle shoreline surf/foam plane just underneath the surface
-    const foamGeo = new THREE.PlaneGeometry(60, 260, 16, 32);
+    // Subtle shoreline surf/foam plane along the beach water's edge
+    const foamGeo = new THREE.PlaneGeometry(35, 300, 16, 32);
     foamGeo.rotateX(-Math.PI / 2);
     const foamMat = new THREE.MeshBasicMaterial({
       color: 0xe0f2fe,
@@ -48,7 +48,7 @@ export class OceanWater {
       depthWrite: false,
     });
     this.foamMesh = new THREE.Mesh(foamGeo, foamMat);
-    this.foamMesh.position.set(12, OceanWater.WATER_Y + 0.05, 0);
+    this.foamMesh.position.set(2005, OceanWater.WATER_Y + 0.05, 2000);
     scene.add(this.foamMesh);
   }
 

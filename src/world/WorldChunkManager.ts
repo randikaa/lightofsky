@@ -32,6 +32,18 @@ export class WorldChunkManager {
   }
 
   public update(playerPos: THREE.Vector3) {
+    const inBeachArea = Math.hypot(playerPos.x - 2000, playerPos.z - 2000) < 350;
+    if (inBeachArea) {
+      if (this.currentCenterChunkKey !== "beach") {
+        this.currentCenterChunkKey = "beach";
+        for (const chunk of this.activeChunks.values()) {
+          this.disposeChunk(chunk);
+        }
+        this.activeChunks.clear();
+      }
+      return;
+    }
+
     const centerChunkX = Math.floor(playerPos.x / this.chunkSize);
     const centerChunkZ = Math.floor(playerPos.z / this.chunkSize);
     const centerKey = `${centerChunkX},${centerChunkZ}`;

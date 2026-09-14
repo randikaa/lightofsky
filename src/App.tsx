@@ -187,6 +187,10 @@ export function App() {
     gameRef.current?.resetCharacter();
   };
 
+  const handleToggleTravel = () => {
+    gameRef.current?.toggleZoneTravel();
+  };
+
   const handleSendMessage = (text: string) => {
     gameRef.current?.sendChatMessage(text);
   };
@@ -229,6 +233,7 @@ export function App() {
           onToggleMute={handleToggleMute}
           onResetCharacter={handleResetCharacter}
           onChangeCharacter={() => setShowClassModal(true)}
+          onToggleTravel={handleToggleTravel}
         />
       )}
 
