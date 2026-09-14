@@ -155,7 +155,10 @@ export class Game {
 
     // 8. Multiplayer Colyseus Synchronization & Chat System
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const serverUrl = `${protocol}//${window.location.hostname}:2567`;
+    const isDev = window.location.port === "5173";
+    const serverUrl = isDev
+      ? `${protocol}//${window.location.hostname}:2567`
+      : `${protocol}//${window.location.host}`;
 
     this.network = new NetworkManager(
       serverUrl,

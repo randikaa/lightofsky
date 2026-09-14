@@ -7,7 +7,10 @@
     "dev": "vite",
     "dev:server": "pnpm --prefix server dev",
     "dev:all": "concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"pnpm dev:server\" \"pnpm dev\"",
-    "build": "tsc -b && vite build",
+    "build:client": "tsc -b && vite build",
+    "build:server": "pnpm --prefix server build",
+    "build": "tsc -b && vite build && pnpm --prefix server build",
+    "start": "node server/dist/index.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
