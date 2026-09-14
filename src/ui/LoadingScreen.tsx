@@ -4,12 +4,14 @@ interface LoadingScreenProps {
   progress: number;
   statusText: string;
   isReady: boolean;
+  phaseTitle?: string;
 }
 
 export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   progress,
   statusText,
   isReady,
+  phaseTitle = "DOWNLOADING GAME ASSETS",
 }) => {
   return (
     <div
@@ -80,6 +82,28 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
       >
         Jungle Frontier & Medieval Settlement
       </p>
+
+      {/* Phase Badge */}
+      {phaseTitle && (
+        <div
+          style={{
+            marginBottom: "16px",
+            fontSize: "11px",
+            letterSpacing: "2.5px",
+            fontWeight: 800,
+            color: "#fbbf24",
+            background: "rgba(245, 158, 11, 0.12)",
+            border: "1px solid rgba(245, 158, 11, 0.35)",
+            padding: "5px 16px",
+            borderRadius: "9999px",
+            textTransform: "uppercase",
+            fontFamily: "system-ui, -apple-system, sans-serif",
+            boxShadow: "0 0 15px rgba(245, 158, 11, 0.15)",
+          }}
+        >
+          {phaseTitle}
+        </div>
+      )}
 
       {/* Progress Bar Container */}
       <div

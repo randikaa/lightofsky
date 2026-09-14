@@ -19,9 +19,11 @@ export function App() {
   const [hasStarted, setHasStarted] = useState(false);
   const [showClassModal, setShowClassModal] = useState(false);
 
-  // Asset loading & initial readiness states
-  const [loadingProgress, setLoadingProgress] = useState(5);
+  // Asset download & loading screen states
+  const [assetsDownloaded, setAssetsDownloaded] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingStatus, setLoadingStatus] = useState("Connecting to asset repository...");
+  const [phaseTitle, setPhaseTitle] = useState("DOWNLOADING GAME ASSETS");
   const [isGameReady, setIsGameReady] = useState(false);
 
   const [telemetry, setTelemetry] = useState<GameTelemetry | null>(null);
@@ -36,11 +38,55 @@ export function App() {
     },
   ]);
 
-  // Immediately kick off background pre-loading of 3D assets on app mount
+  // Download all 3D game assets on initial app mount with real-time progress reporting
   useEffect(() => {
-    AdventurerModelFactory.getInstance().loadAll();
-    ForestModelFactory.getInstance().loadAll();
-    VillageModelFactory.getInstance().loadAll();
+    const advFactory = AdventurerModelFactory.getInstance();
+    const forestFactory = ForestModelFactory.getInstance();
+    const villageFactory = VillageModelFactory.getInstance();
+
+    let advLoaded = advFactory.isLoaded ? 8 : 0;
+    let forestLoaded = forestFactory.isLoaded ? 21 : 0;
+    let villageLoaded = villageFactory.isLoaded ? 42 : 0;
+    const totalAssets = 71;
+
+    const updateProgress = (detail: string) => {
+      const sum = advLoaded + forestLoaded + villageLoaded;
+      const pct = Math.min(100, Math.round((sum / totalAssets) * 100));
+      setLoadingProgress(pct);
+      setLoadingStatus(detail);
+    };
+
+    advFactory.onProgress = (l, t) => {
+      advLoaded = l;
+      updateProgress(`Downloading Adventurer Models (${l}/${t})...`);
+    };
+    forestFactory.onProgress = (l, t) => {
+      forestLoaded = l;
+      updateProgress(`Downloading Forest & Nature Assets (${l}/${t})...`);
+    };
+    villageFactory.onProgress = (l, t) => {
+      villageLoaded = l;
+      updateProgress(`Downloading Medieval Village Architecture (${l}/${t})...`);
+    };
+
+    updateProgress("Connecting to asset repository...");
+
+    Promise.all([
+      advFactory.loadAll(),
+      forestFactory.loadAll(),
+      villageFactory.loadAll(),
+    ])
+      .then(() => {
+        setLoadingProgress(100);
+        setLoadingStatus("All assets downloaded successfully!");
+        setTimeout(() => {
+          setAssetsDownloaded(true);
+        }, 500);
+      })
+      .catch((err) => {
+        console.error("Asset download error:", err);
+        setAssetsDownloaded(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -110,6 +156,8 @@ export function App() {
   const handleStartGame = (chosenClass: CharacterClass, chosenName: string) => {
     setSelectedClass(chosenClass);
     setPlayerName(chosenName);
+    setPhaseTitle("ENTERING THE REALM");
+    setIsGameReady(false);
     setHasStarted(true);
     setShowClassModal(false);
   };
@@ -145,7 +193,7 @@ export function App() {
       <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
 
       {/* Opening Character Selection Modal */}
-      {!hasStarted && (
+      {!hasStarted && assetsDownloaded && (
         <CharacterSelectorModal
           initialClass={selectedClass}
           initialPlayerName={playerName}
@@ -166,7 +214,7 @@ export function App() {
       )}
 
       {/* Real-time Explorer HUD Dashboard */}
-      {hasStarted && telemetry && (
+      {hasStarted && telemetry && isGameReady && (
         <HUD
           telemetry={telemetry}
           isMuted={isMuted}
@@ -177,7 +225,7 @@ export function App() {
       )}
 
       {/* In-Game Multiplayer Radio & Chat Panel */}
-      {hasStarted && (
+      {hasStarted && isGameReady && (
         <ChatUI
           messages={messages}
           playerCount={telemetry?.playerCount ?? 1}
@@ -186,14 +234,13 @@ export function App() {
         />
       )}
 
-      {/* Loading Progress Screen */}
-      {hasStarted && (
-        <LoadingScreen
-          progress={loadingProgress}
-          statusText={loadingStatus}
-          isReady={isGameReady}
-        />
-      )}
+      {/* Loading Progress Screen: Active during initial asset download AND during realm entry */}
+      <LoadingScreen
+        progress={loadingProgress}
+        statusText={loadingStatus}
+        phaseTitle={phaseTitle}
+        isReady={assetsDownloaded && (!hasStarted || isGameReady)}
+      />
     </div>
   );
 }
